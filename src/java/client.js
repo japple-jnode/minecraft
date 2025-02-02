@@ -50,6 +50,7 @@ class MinecraftJavaClient {
 				connection.sendPacket(0x00);
 			});
 			
+			//receive status packet
 			connection.on('packet', (packet) => {
 				if (packet.id === 0x00) { //received packet
 					connection.disconnect();
@@ -57,6 +58,11 @@ class MinecraftJavaClient {
 					resolve(JSON.parse(fields[0]));
 				}
 			});
+			
+			//handle error
+			connection.on('error', reject);
+			
+			return;
 		});
 	}
 }

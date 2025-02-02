@@ -72,6 +72,9 @@ class MinecraftJavaConnection extends EventEmitter {
 			port: this.client._port
 		}, () => { this.emit('connect'); }); //emit a connect event
 		
+		//throw error
+		this.socket.on('error', (err) => { this.emit('error', err )});
+		
 		return;
 	}
 	
