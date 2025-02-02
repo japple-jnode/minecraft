@@ -1,13 +1,8 @@
 {
   "name": "@jnode/minecraft",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Simple Minecraft package for Node.js.",
   "main": "src/index.js",
-  "exports": {
-    "main": "src/index.js",
-    "./bedrock": "src/bedrock/index.js",
-    "./java": "src/java/index.js"
-  },
   "scripts": {
     "test": "echo \"Hello, Minecraft.\""
   },
