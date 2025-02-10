@@ -7,7 +7,6 @@ by JustNode Dev Team / JustApple
 */
 
 //load node packages
-const net = require('net');
 const EventEmitter = require('events');
 
 //load classes and functions
@@ -17,11 +16,10 @@ const dataType = require('./data-type.js');
 
 //Minecraft Java connection
 class MinecraftJavaConnection extends EventEmitter {
-	constructor(client) {
+	constructor(socket) {
 		super();
 		
-		this.client = client; //MinecraftJavaClient
-		this.socket = new net.Socket(); //tcp socket
+		this.socket = socket; //connected tcp socket
 		
 		//receive packet
 		this.buf = Buffer.alloc(0);
@@ -58,19 +56,18 @@ class MinecraftJavaConnection extends EventEmitter {
 		});
 	}
 	
-	async connect() {
-		//check Minecraft SRV record before continue
-		if (!this.client._host) {
-			const record = await resolveRsv(this.client.host, this.client.port);
-			this.client._host = record.host;
-			this.client._port = record.port;
-		}
+	connect(host, port = 25565, timeout = 10000) {
+		//set timeout
+		const timer = setTimeout(() => {
+			this.socket.destroy();
+			this.emit('timeout');
+		}, timeout);
 		
 		//start tcp connect
 		this.socket.connect({
-			host: this.client._host,
-			port: this.client._port
-		}, () => { this.emit('connect'); }); //emit a connect event
+			host: host,
+			port: port
+		}, () => { clearTimeout(timer); this.emit('connect'); }); //emit a connect event
 		
 		//throw error
 		this.socket.on('error', (err) => { this.emit('error', err )});

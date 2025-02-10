@@ -6,6 +6,9 @@ Simple Minecraft package for Node.js.
 by JustNode Dev Team / JustApple
 */
 
+//load node packages
+const net = require('net');
+
 //load classes and functions
 const resolveRsv = require('./resolve-srv.js');
 const MinecraftJavaConnection = require('./connection.js');
@@ -33,8 +36,13 @@ class MinecraftJavaClient {
 			}
 			
 			//create connection
-			const connection = new MinecraftJavaConnection(this);
-			connection.connect();
+			const socket = new net.Socket();
+			const connection = new MinecraftJavaConnection(socket);
+			connection.connect(this._host, this._port, 5000);
+			
+			connection.on('timeout', () => {
+				reject(new Error('Connect timeout.'));
+			});
 			
 			//handshake after connected
 			connection.on('connect', () => {
