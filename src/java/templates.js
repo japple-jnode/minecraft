@@ -7,13 +7,13 @@ by JustNode Dev Team / JustApple
 */
 
 //load classes and functions
-const { PacketDataTemplate } = require('./packet.js');
+const { Template } = require('./packet.js');
 
 //export
 module.exports = {
 	handshake: {
 		serverbound: {
-			handshake: new PacketDataTemplate([
+			0x00: new Template([
 				{ type: 'VarInt' },
 				{ type: 'String' },
 				{ type: 'UShort' },
@@ -23,12 +23,12 @@ module.exports = {
 	},
 	status: {
 		clientbound: {
-			statusResponse: new PacketDataTemplate([
+			0x00: new Template([
 				{ type: 'String' }
 			])
 		},
 		serverbound: {
-			statusRequest: new PacketDataTemplate([])
+			0x00: new Template([])
 		}
 	}
 };

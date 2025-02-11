@@ -11,15 +11,15 @@ const dataType = require('./data-type.js');
 
 //create a packet buffer
 function createPacket(id = 0, data = Buffer.alloc(0)) {
-	id = dataType.createVarInt(id); //id to VarInt buffer
-	const len = dataType.createVarInt(id.length + data.length); //data length to VarInt buffer
+	id = dataType.VarInt.create(id); //id to VarInt buffer
+	const len = dataType.VarInt.create(id.length + data.length); //data length to VarInt buffer
 	return Buffer.concat([ len, id, data ]); //concat length, id and data
 }
 
 //read a packet
 function readPacket(data = Buffer.alloc(0), offset = 0) {
-	const len = dataType.readVarInt(data, offset);
-	const id = dataType.readVarInt(data, offset + len.length);
+	const len = dataType.VarInt.read(data, offset);
+	const id = dataType.VarInt.read(data, offset + len.length);
 	return {
 		id: id.value,
 		data: data.subarray(offset + len.length + id.length, offset + len.length + len.value),
@@ -42,18 +42,8 @@ class PacketDataTemplate {
 		
 		//turn every field to buffer
 		for (let i in template) {
-			switch (template[i].type) {
-				case 'VarInt': //push VarInt
-					result.push(dataType.createVarInt(fields[i] ?? 0));
-					break;
-				case 'String': //push String
-					result.push(dataType.createString(fields[i] ?? ''));
-					break;
-				case 'UShort': //push Unsigned Short
-					result.push(dataType.createUShort(fields[i] ?? 0));
-					break;
-				default: //ignore field
-					break;
+			if (dataType[template[i].type]) { //push field or ignore
+				result.push(dataType[template[i].type].create(fields[i] ?? 0));
 			}
 		}
 		
@@ -68,19 +58,10 @@ class PacketDataTemplate {
 		for (let i in template) {
 			let field;
 			
-			switch (template[i].type) {
-				case 'VarInt': //push VarInt
-					field = dataType.readVarInt(data, offset);
-					break;
-				case 'String': //push String
-					field = dataType.readString(data, offset);
-					break;
-				case 'UShort': //push UShort
-					field = dataType.readUShort(data, offset);
-					break;
-				default: //ignore field
-					field = { value: null, length: 0 };
-					break;
+			if (dataType[template[i].type]) { //set field
+				field = dataType[template[i].type].read(data, offset);
+			} else { //unknown field type
+				field = { value: undefined, length: 0 };
 			}
 			
 			result.push(field.value);
@@ -93,7 +74,7 @@ class PacketDataTemplate {
 
 //export
 module.exports = {
-	createPacket,
-	readPacket,
-	PacketDataTemplate
+	create: createPacket,
+	read: readPacket,
+	Template: PacketDataTemplate
 };

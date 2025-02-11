@@ -38,7 +38,7 @@ class MinecraftJavaConnection extends EventEmitter {
 				
 				//get packet data length
 				if (this.len === null) {
-					let len = dataType.readVarInt(this.buf);
+					let len = dataType.VarInt.read(this.buf);
 					this.len = len.length + len.value;
 				}
 				
@@ -46,7 +46,7 @@ class MinecraftJavaConnection extends EventEmitter {
 				if (this.buf.length < this.len) return;
 				
 				//read packet
-				let pak = packet.readPacket(this.buf);
+				let pak = packet.read(this.buf);
 				this.emit('packet', pak);
 				
 				//update buffer
@@ -76,7 +76,7 @@ class MinecraftJavaConnection extends EventEmitter {
 	}
 	
 	sendPacket(id, data) {
-		return this.socket.write(packet.createPacket(id, data));
+		return this.socket.write(packet.create(id, data));
 	}
 	
 	disconnect() {

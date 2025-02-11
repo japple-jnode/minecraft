@@ -95,10 +95,7 @@ function readUShort(data, offset = 0) {
 
 //export
 module.exports = {
-	createVarInt,
-	readVarInt,
-	createString,
-	readString,
-	createUShort,
-	readUShort
+	VarInt: { create: createVarInt, read: readVarInt },
+	String: { create: createString, read: readString },
+	UShort: { create: createUShort, read: readUShort }
 };

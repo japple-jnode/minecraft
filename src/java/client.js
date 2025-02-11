@@ -47,7 +47,7 @@ class MinecraftJavaClient {
 			//handshake after connected
 			connection.on('connect', () => {
 				//handshake packet
-				connection.sendPacket(0x00, templates.handshake.serverbound.handshake.createData([
+				connection.sendPacket(0x00, templates.handshake.serverbound[0x00].createData([
 					767, //protocol version
 					this._host, //server address
 					this._port, //server port
@@ -62,7 +62,7 @@ class MinecraftJavaClient {
 			connection.on('packet', (packet) => {
 				if (packet.id === 0x00) { //received packet
 					connection.disconnect();
-					const fields = templates.status.clientbound.statusResponse.readData(packet.data);
+					const fields = templates.status.clientbound[0x00].readData(packet.data);
 					resolve(JSON.parse(fields[0]));
 				}
 			});
