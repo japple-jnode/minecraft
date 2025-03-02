@@ -18,8 +18,8 @@ function createPacket(id = 0, data = Buffer.alloc(0)) {
 
 //read a packet
 function readPacket(data = Buffer.alloc(0), offset = 0) {
-	const len = dataType.VarInt.read(data, offset);
-	const id = dataType.VarInt.read(data, offset + len.length);
+	const len = dataType.VarInt.read(data, null, offset);
+	const id = dataType.VarInt.read(data, null, offset + len.length);
 	return {
 		id: id.value,
 		data: data.subarray(offset + len.length + id.length, offset + len.length + len.value),
@@ -43,7 +43,7 @@ class PacketDataTemplate {
 		//turn every field to buffer
 		for (let i in template) {
 			if (dataType[template[i].type]) { //push field or ignore
-				result.push(dataType[template[i].type].create(fields[i] ?? 0));
+				result.push(dataType[template[i].type].create(fields[i], template[i].define));
 			}
 		}
 		
@@ -51,15 +51,16 @@ class PacketDataTemplate {
 	}
 	
 	//read fields from buffer
-	readData(data, template = this.template, offset = 0) {
+	readData(data, offset = 0, template = this.template) {
 		let result = [];
+		const beginOffset = offset;
 		
-		//turn every field to buffer
+		//read every field
 		for (let i in template) {
 			let field;
 			
 			if (dataType[template[i].type]) { //set field
-				field = dataType[template[i].type].read(data, offset);
+				field = dataType[template[i].type].read(data, template[i].define, offset);
 			} else { //unknown field type
 				field = { value: undefined, length: 0 };
 			}
@@ -68,7 +69,10 @@ class PacketDataTemplate {
 			offset += field.length;
 		}
 		
-		return result;
+		return {
+			value: result,
+			length: offset - beginOffset
+		};
 	}
 }
 

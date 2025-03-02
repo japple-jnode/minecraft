@@ -8,6 +8,7 @@ by JustNode Dev Team / JustApple
 
 //load node packages
 const net = require('net');
+const crypto = require('crypto');
 
 //load classes and functions
 const resolveRsv = require('./resolve-srv.js');
@@ -26,7 +27,7 @@ class MinecraftJavaClient {
 	}
 	
 	//get server status
-	getServerStatus() {
+	getServerStatus(ping = true) {
 		return new Promise(async (resolve, reject) => {
 			//check Minecraft SRV record before continue
 			if (!this._host) {
@@ -40,12 +41,16 @@ class MinecraftJavaClient {
 			const connection = new MinecraftJavaConnection(socket);
 			connection.connect(this._host, this._port, 5000);
 			
+			//connection timeout
 			connection.on('timeout', () => {
 				reject(new Error('Connect timeout.'));
 			});
 			
+			//ping
+			let pingMs;
+			
 			//handshake after connected
-			connection.on('connect', () => {
+			connection.on('connect', async () => {
 				//handshake packet
 				connection.sendPacket(0x00, templates.handshake.serverbound[0x00].createData([
 					767, //protocol version
@@ -56,14 +61,29 @@ class MinecraftJavaClient {
 				
 				//request status
 				connection.sendPacket(0x00);
+				
+				//ping
+				if (ping) {
+					pingMs = Date.now();
+					connection.sendPacket(0x01, templates.status.serverbound[0x01].createData([pingMs]));
+				}
 			});
 			
 			//receive status packet
+			let status = {};
 			connection.on('packet', (packet) => {
 				if (packet.id === 0x00) { //received packet
+					status = JSON.parse(templates.status.clientbound[0x00].readData(packet.data).value[0]);
+					if (!ping) {
+						connection.disconnect();
+						resolve(status);
+					}
+				}
+				
+				if (packet.id === 0x01) { //received pong
 					connection.disconnect();
-					const fields = templates.status.clientbound[0x00].readData(packet.data);
-					resolve(JSON.parse(fields[0]));
+					status.ping = Date.now() - pingMs;
+					resolve(status);
 				}
 			});
 			
