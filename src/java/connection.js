@@ -19,6 +19,10 @@ class MinecraftJavaConnection extends EventEmitter {
 	constructor(socket) {
 		super();
 		
+		//states
+		this.state = 'handshake';
+		this.compressionThreshold = -1; //compress threshold, -1 for no compression
+		
 		this.socket = socket; //connected tcp socket
 		
 		//receive packet
@@ -46,13 +50,15 @@ class MinecraftJavaConnection extends EventEmitter {
 				if (this.buf.length < this.len) return;
 				
 				//read packet
-				let pak = packet.read(this.buf);
+				let pak = packet.read(this.buf, this.compressionThreshold);
 				this.emit('packet', pak);
 				
 				//update buffer
 				this.buf = this.buf.subarray(pak.length);
 				this.len = null;
 			}
+			
+			return;
 		});
 	}
 	
@@ -76,7 +82,7 @@ class MinecraftJavaConnection extends EventEmitter {
 	}
 	
 	sendPacket(id, data) {
-		return this.socket.write(packet.create(id, data));
+		return this.socket.write(packet.create(id, data, this.compressionThreshold));
 	}
 	
 	disconnect() {

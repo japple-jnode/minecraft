@@ -317,6 +317,19 @@ function readPrefixedOptional(data, define, offset = 0) {
 	};
 }
 
+//create remain data
+function createRemainData(buf) {
+	return buf;
+}
+
+//read remain data
+function readRemainData(data, define, offset = 0) {
+	return {
+		value: data,
+		length: data.length
+	};
+}
+
 //export
 module.exports = {
 	VarInt: { create: createVarInt, read: readVarInt },
@@ -333,5 +346,6 @@ module.exports = {
 	UUID: { create: createUUID, read: readUUID },
 	PrefixedArray: { create: createPrefixedArray, read: readPrefixedArray },
 	PrefixedBytes: { create: createPrefixedBytes, read: readPrefixedBytes },
-	PrefixedOptional: { create: createPrefixedOptional, read: readPrefixedOptional }
+	PrefixedOptional: { create: createPrefixedOptional, read: readPrefixedOptional },
+	RemainData: { create: createRemainData, read: readRemainData }
 };

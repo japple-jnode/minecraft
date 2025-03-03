@@ -6,25 +6,66 @@ Simple Minecraft package for Node.js.
 by JustNode Dev Team / JustApple
 */
 
+//load node packages
+const zlib = require('zlib');
+
 //load classes and functions
 const dataType = require('./data-type.js');
 
 //create a packet buffer
-function createPacket(id = 0, data = Buffer.alloc(0)) {
+function createPacket(id = 0, data = Buffer.alloc(0), threshold) {
 	id = dataType.VarInt.create(id); //id to VarInt buffer
-	const len = dataType.VarInt.create(id.length + data.length); //data length to VarInt buffer
-	return Buffer.concat([ len, id, data ]); //concat length, id and data
+	if (threshold >= 0) {
+		if (data.length > threshold) { //need compress
+			const dataLen = dataType.VarInt.create(id.length + data.length);
+			data = zlib.deflateSync(Buffer.concat([ id, data ])); //compress
+			const packetLen = dataType.VarInt.create(dataLen.length + data.length); //data length to VarInt buffer
+			return Buffer.concat([ packetLen, dataLen, data ]); //concat length, id and data
+		} else { //no compress
+			const dataLen = dataType.VarInt.create(0);
+			const packetLen = dataType.VarInt.create(dataLen.length + id.length + data.length); //data length to VarInt buffer
+			return Buffer.concat([ packetLen, dataLen, id, data ]); //concat length, id and data
+		}
+	} else { //no compression
+		const packetLen = dataType.VarInt.create(id.length + data.length); //data length to VarInt buffer
+		return Buffer.concat([ packetLen, id, data ]); //concat length, id and data
+	}
 }
 
 //read a packet
-function readPacket(data = Buffer.alloc(0), offset = 0) {
-	const len = dataType.VarInt.read(data, null, offset);
-	const id = dataType.VarInt.read(data, null, offset + len.length);
-	return {
-		id: id.value,
-		data: data.subarray(offset + len.length + id.length, offset + len.length + len.value),
-		length: len.length + len.value
-	};
+function readPacket(data = Buffer.alloc(0), threshold, offset = 0) {
+	const packetLen = dataType.VarInt.read(data, null, offset);
+	if (threshold >= 0) {
+		const dataLen = dataType.VarInt.read(data, null, offset + packetLen.length);
+		if (dataLen.value == 0) { //no compress
+			const id = dataType.VarInt.read(data, null, offset + packetLen.length + dataLen.length);
+			return {
+				id: id.value,
+				data: data.subarray(offset + packetLen.length + dataLen.length + id.length, offset + packetLen.length + dataLen.length + packetLen.value),
+				length: packetLen.length + packetLen.value
+			};
+		} else { //compress
+			data = zlib.inflateSync(
+				data.subarray(
+					offset + packetLen.length + dataLen.length,
+					offset + packetLen.length + dataLen.length + packetLen.value
+				)
+			);
+			const id = dataType.VarInt.read(data);
+			return {
+				id: id.value,
+				data: data.subarray(id.length),
+				length: packetLen.length + packetLen.value
+			};
+		}
+	} else {
+		const id = dataType.VarInt.read(data, null, offset + packetLen.length);
+		return {
+			id: id.value,
+			data: data.subarray(offset + packetLen.length + id.length, offset + packetLen.length + packetLen.value),
+			length: packetLen.length + packetLen.value
+		};
+	}
 }
 
 //packet data template
