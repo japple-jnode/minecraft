@@ -6,6 +6,9 @@ Simple Minecraft package for Node.js.
 by JustNode Dev Team / JustApple
 */
 
+//load functions and classes
+const nbt = require('./nbt.js');
+
 //create VarInt buffer
 function createVarInt(num = 0) {
 	//for number 0
@@ -330,6 +333,151 @@ function readRemainData(data, define, offset = 0) {
 	};
 }
 
+//create Angle buffer
+function createAngle(angle) {
+	const buf = Buffer.alloc(1);
+	buf.writeUInt8(angle);
+	return buf;
+}
+
+//read Angle
+function readAngle(data, define, offset = 0) {
+	return {
+		value: data.readUInt8(offset),
+		length: 1
+	};
+}
+
+//create Position buffer
+function createPosition(pos) {
+	const buf = Buffer.alloc(8);
+	
+	//make sure xyz is vaild
+	const limitedX = pos.x & 0x3FFFFFF; // 26 bits
+	const limitedY = pos.y & 0xFFF; // 12 bits
+	const limitedZ = pos.z & 0x3FFFFFF; // 26 bits
+	
+	const position = ((BigInt(limitedX) << 38n) | (BigInt(limitedZ) << 12n) | BigInt(limitedY));
+	
+	buf.writeBigInt64BE(position, 0);
+	return buf;
+}
+
+//read Position
+function readPosition(data, define, offset = 0) {
+	const val = data.readBigInt64BE(offset);
+	
+	let x = Number(val >> 38n);
+	let y = Number((val << 52n) >> 52n);
+	let z = Number((val << 26n) >> 38n);
+	
+	if (x >= (1 << 25)) x -= (1 << 26);
+	if (y >= (1 << 11)) y -= (1 << 12);
+	if (z >= (1 << 25)) z -= (1 << 26);
+	
+	return {
+		value: { x: x, y: y, z: z },
+		length: 8
+	};
+}
+
+//create IDOr buffer
+function createIDOr(idOr = {}, define) {
+	if (!value.id) {
+		// Inline value
+		const idBuf = createVarInt(0);
+		const valueBuf = define.createData(value);
+		return Buffer.concat([idBuf, valueBuf]);
+	} else {
+		// Registry ID + 1
+		const idBuf = createVarInt(value.id + 1);
+		return idBuf;
+	}
+}
+
+//read IDOr
+function readIDOr(data, define, offset = 0) {
+	const originalOffset = offset;
+	const idResult = readVarInt(data, null, offset);
+	const id = idResult.value;
+	offset += idResult.length;
+	
+	if (id === 0) {
+		// Inline value
+		const valueResult = define.readData(data, offset);
+		offset += valueResult.length;
+		return {
+			value: { id: 0, value: valueResult.value },
+			length: offset - originalOffset
+		};
+	} else {
+		// Registry ID + 1
+		return {
+			value: { id: id - 1, value: null },
+			length: offset - originalOffset
+		};
+	}
+}
+
+//create BitSet buffer
+function createBitSet(bits) {
+	const longCount = Math.ceil(bits.length / 64);
+	const longs = new Array(longCount).fill(0n);
+	
+	for (let i = 0; i < bits.length; i++) {
+		if (bits[i]) {
+			const longIndex = Math.floor(i / 64);
+			const bitIndex = i % 64;
+			longs[longIndex] |= (1n << BigInt(bitIndex));
+		}
+	}
+	
+	const longBuffer = Buffer.alloc(longCount * 8);
+	for (let i = 0; i < longCount; i++) {
+		longBuffer.writeBigInt64BE(longs[i], i * 8);
+	}
+	
+	const lengthVarInt = module.exports.VarInt.create(longCount);
+	return Buffer.concat([lengthVarInt, longBuffer]);
+}
+
+//read BitSet
+function readBitSet(data, define, offset = 0) {
+	let currentOffset = offset;
+	const lengthInfo = module.exports.VarInt.read(data, null, currentOffset);
+	const longCount = lengthInfo.value;
+	currentOffset += lengthInfo.length;
+	
+	const bits = [];
+	for (let i = 0; i < longCount; i++) {
+		const longValue = data.readBigInt64BE(currentOffset + i * 8);
+		for (let j = 0; j < 64; j++) {
+			bits[i * 64 + j] = (longValue & (1n << BigInt(j))) !== 0n;
+		}
+	}
+	
+	return {
+		value: bits,
+		length: lengthInfo.length + longCount * 8
+	};
+}
+
+//create FixedBitSet buffer
+function createFixedBitSet(bits = Buffer.alloc(0, 0), define = 0) {
+	if (bits.length < Math.ceil(define / 8)) {
+		bits = Buffer.concat([ Buffer.alloc(Math.ceil(define / 8) - bits.length), bits ]);
+	}
+	return bits.subarray(0, Math.ceil(define / 8));
+}
+
+//read FixedBitSet
+function readFixedBitSet(data, define, offset = 0) {
+	return {
+		value: data.subarray(offset, offset + Math.ceil(define / 8)),
+		length: Math.ceil(define / 8)
+	};
+}
+
 //export
 module.exports = {
 	VarInt: { create: createVarInt, read: readVarInt },
@@ -347,5 +495,12 @@ module.exports = {
 	PrefixedArray: { create: createPrefixedArray, read: readPrefixedArray },
 	PrefixedBytes: { create: createPrefixedBytes, read: readPrefixedBytes },
 	PrefixedOptional: { create: createPrefixedOptional, read: readPrefixedOptional },
-	RemainData: { create: createRemainData, read: readRemainData }
+	RemainData: { create: createRemainData, read: readRemainData },
+	Angle: { create: createAngle, read: readAngle },
+	Position: { create: createPosition, read: readPosition },
+	IDOr: { create: createIDOr, read: readIDOr },
+	Identifier: { create: createString, read: readString },
+	BitSet: { create: createBitSet, read: readBitSet },
+	TextComponent: { create: nbt.network.create, read: nbt.network.read },
+	FixedBitSet: { create: createFixedBitSet, read: readFixedBitSet },
 };
