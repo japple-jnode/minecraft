@@ -355,7 +355,7 @@ module.exports = {
 				// Optional data will be added later
 			]),
 			0x1D: new Template([ // Disconnect (play)
-				{ type: 'String' }
+				{ type: 'TextComponent' }
 			]),
 			0x1E: new Template([ // Disguised Chat Message
 				{ type: 'String' },
